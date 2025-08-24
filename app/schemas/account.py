@@ -4,7 +4,7 @@ from pydantic import UUID4, BaseModel
 # Entrada
 class CreateAccount(BaseModel):
     user_id: UUID4
-    balance: float | None = 0.0
+    balance: float = 0.0
 
 
 # Entrada

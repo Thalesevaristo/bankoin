@@ -1,6 +1,7 @@
 from fastapi import APIRouter, status
 
 from app.schemas import ShowAccount, CreateAccount
+from app.schemas.account import UpdateAccount
 from app.services import AccountService
 
 from app.database import SessionDep
@@ -41,6 +42,23 @@ async def list_accounts(
         user_id=user_id,
         limit=limit,
         skip=skip,
+    )
+
+
+@account_router.patch(
+    "/{account_id}",
+    response_model=ShowAccount,
+    status_code=status.HTTP_200_OK,
+)
+async def update_account(
+    account_id: int,
+    account_data: UpdateAccount,
+    session: SessionDep,
+):
+    return await account_service.update_account(
+        account_id=account_id,
+        account=account_data,
+        session=session,
     )
 
 

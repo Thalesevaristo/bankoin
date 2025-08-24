@@ -26,7 +26,7 @@ class CreateUser(BaseModel):
 
 # Entrada
 class UpdateUser(BaseModel):
-    username: str | None = Field(default=None, max_length=30)
+    username: str | None = Field(default=None, min_length=3, max_length=30)
     password: str | None = Field(default=None, min_length=8)
     email: EmailStr | None = None
     first_name: str | None = Field(default=None, max_length=15)

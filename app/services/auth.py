@@ -1,38 +1,21 @@
 from datetime import datetime, timedelta, UTC
 
-import jwt
+from jwt import InvalidTokenError, encode, decode
 
-from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from sqlmodel import select
 
 from app.database import SessionDep
+from app.exceptions import (
+    CredentialsError,
+    TokenRevokedError,
+    UserNotFoundError,
+)
 from app.models import User
 from app.schemas import TokenResponse, TokenStore
 from app.security import verify_password
 from app.settings import settings
-
-# Exceções comuns reutilizáveis
-CREDENTIALS_EXCEPTION = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Invalid credentials",
-)
-
-INVALID_TOKEN_EXCEPTION = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Invalid token",
-)
-
-TOKEN_REVOKED_EXCEPTION = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Token revoked",
-)
-
-USER_NOT_FOUND_EXCEPTION = HTTPException(
-    status_code=status.HTTP_404_NOT_FOUND,
-    detail="User not found",
-)
 
 
 class AuthService:
@@ -55,7 +38,7 @@ class AuthService:
             )
         )
         to_encode.update({"exp": expire})
-        return jwt.encode(
+        return encode(
             to_encode,
             key=settings.SECRET_KEY,
             algorithm=settings.ALGORITHM,
@@ -65,13 +48,13 @@ class AuthService:
     def decode_token(token: str) -> dict:
         """Decodifica e valida um token JWT."""
         try:
-            return jwt.decode(
+            return decode(
                 token,
                 key=settings.SECRET_KEY,
                 algorithms=[settings.ALGORITHM],
             )
-        except jwt.InvalidTokenError:
-            raise INVALID_TOKEN_EXCEPTION
+        except InvalidTokenError:
+            raise InvalidTokenError
 
     # --------------------
     # Fluxos de autenticação
@@ -89,7 +72,7 @@ class AuthService:
             login_data.password,
             user.password,
         ):
-            raise CREDENTIALS_EXCEPTION
+            raise CredentialsError
 
         return await self.refresh_token(user)
 
@@ -108,13 +91,13 @@ class AuthService:
         user_id: str | None = payload.get("sub")
 
         if not user_id:
-            raise INVALID_TOKEN_EXCEPTION
+            raise InvalidTokenError
         if TokenStore.is_revoked(user_id):
-            raise TOKEN_REVOKED_EXCEPTION
+            raise TokenRevokedError
 
         user = session.get(User, user_id)
         if not user:
-            raise USER_NOT_FOUND_EXCEPTION
+            raise UserNotFoundError
 
         return user
 
@@ -128,11 +111,11 @@ class AuthService:
         user_id: str | None = payload.get("sub")
 
         if not user_id:
-            raise INVALID_TOKEN_EXCEPTION
+            raise InvalidTokenError
 
         user = session.get(User, user_id)
         if not user:
-            raise USER_NOT_FOUND_EXCEPTION
+            raise UserNotFoundError
 
         TokenStore.revoke(user_id)
         return {"msg": "Logout realizado com sucesso"}
